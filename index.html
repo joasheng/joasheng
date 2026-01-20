@@ -37,54 +37,44 @@
   <script>
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d");
-
-    // Colors (minimal)
+    if (!ctx) throw new Error("Canvas 2D context not available");
+  
     const SAND = "#F2D27A";
     const SAND_DARK = "#C7A85D";
     const WATER = "#1E73D8";
-
-    // Mouse state
+  
     const mouse = { x: 0, y: 0, has: false };
-
+  
+    const buttons = [
+      { label: "Button 1", w: 140, h: 42, x: 0, y: 0 },
+      { label: "Button 2", w: 140, h: 42, x: 0, y: 0 },
+      { label: "Button 3", w: 140, h: 42, x: 0, y: 0 },
+    ];
+  
     function resize() {
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      canvas.width = Math.floor(innerWidth * dpr);
-      canvas.height = Math.floor(innerHeight * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+      const cssW = canvas.clientWidth || innerWidth;
+      const cssH = canvas.clientHeight || innerHeight;
+  
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+  
+      // draw in CSS pixel coordinates
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+  
     window.addEventListener("resize", resize);
     resize();
-
+  
     window.addEventListener("mousemove", (e) => {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       mouse.has = true;
     });
-    window.addEventListener("mouseleave", () => { mouse.has = false; });
-
-    // "Buttons" in sand (clickable regions + drawn text)
-    const buttons = [
-      { label: "Button 1", w: 140, h: 42 },
-      { label: "Button 2", w: 140, h: 42 },
-      { label: "Button 3", w: 140, h: 42 },
-    ];
-
-    function layoutButtons(w, h, shorelineY) {
-      const gap = 26;
-      const totalW = buttons.reduce((s, b) => s + b.w, 0) + gap * (buttons.length - 1);
-      let x = (w - totalW) / 2;
-      const y = shorelineY + 48; // sit slightly into the sand, near the water edge
-      for (const b of buttons) {
-        b.x = x;
-        b.y = y;
-        x += b.w + gap;
-      }
-    }
-
+    window.addEventListener("mouseleave", () => (mouse.has = false));
+  
     window.addEventListener("click", (e) => {
-      // Hit test in CSS pixels
-      const x = e.clientX;
-      const y = e.clientY;
+      const x = e.clientX, y = e.clientY;
       for (const b of buttons) {
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
           alert(`${b.label} clicked`);
@@ -92,33 +82,39 @@
         }
       }
     });
-
-    // Waterline function
-    function waterlineY(x, t, w, h, shorelineY) {
-      // gentle wave
+  
+    function layoutButtons(w, shorelineY) {
+      const gap = 26;
+      const totalW = buttons.reduce((s, b) => s + b.w, 0) + gap * (buttons.length - 1);
+      let x = (w - totalW) / 2;
+      const y = shorelineY + 48;
+      for (const b of buttons) {
+        b.x = x;
+        b.y = y;
+        x += b.w + gap;
+      }
+    }
+  
+    function waterlineY(x, t, w, shorelineY) {
       const waveAmp = Math.max(6, Math.min(14, w * 0.01));
       const wave =
         Math.sin((x / w) * Math.PI * 2.2 + t * 0.0012) * waveAmp +
         Math.sin((x / w) * Math.PI * 5.1 - t * 0.0009) * (waveAmp * 0.35);
-
-      // pull-back around the mouse (a gaussian "dent" in the water edge)
+  
       let dent = 0;
       if (mouse.has) {
         const dx = x - mouse.x;
-        const dy = shorelineY - mouse.y; // stronger if mouse is near shoreline
+        const dy = shorelineY - mouse.y;
         const dist2 = dx * dx + dy * dy;
-
+  
         const sigma = Math.max(140, Math.min(260, w * 0.22));
         const strength = Math.max(70, Math.min(150, w * 0.10));
-
-        // Negative moves waterline upward (reveals sand)
         dent = -strength * Math.exp(-dist2 / (2 * sigma * sigma));
       }
-
       return shorelineY + wave + dent;
     }
-
-    function drawRoundedRect(x, y, w, h, r) {
+  
+    function roundRect(x, y, w, h, r) {
       const rr = Math.min(r, w / 2, h / 2);
       ctx.beginPath();
       ctx.moveTo(x + rr, y);
@@ -128,67 +124,98 @@
       ctx.arcTo(x, y, x + w, y, rr);
       ctx.closePath();
     }
-
+  
     function frame(t) {
-      const w = innerWidth;
-      const h = innerHeight;
-
-      // Shoreline sits about mid-screen
-      const shorelineY = h * 0.52;
-      layoutButtons(w, h, shorelineY);
-
-      // Background sand
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = SAND;
-      ctx.fillRect(0, 0, w, h);
-
-      // Subtle sand gradient at bottom (still minimal)
-      const g = ctx.createLinearGradient(0, shorelineY, 0, h);
-      g.addColorStop(0, "rgba(0,0,0,0.00)");
-      g.addColorStop(1, "rgba(0,0,0,0.08)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, shorelineY, w, h - shorelineY);
-
-      // Draw sand "buttons" (text carved into sand)
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = "600 18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      for (const b of buttons) {
-        // faint pressed-in shape (optional but still simple)
-        ctx.globalAlpha = 0.22;
-        ctx.fillStyle = "#000";
-        drawRoundedRect(b.x, b.y, b.w, b.h, 14);
+      try {
+        const w = innerWidth;
+        const h = innerHeight;
+        const shorelineY = h * 0.52;
+  
+        layoutButtons(w, shorelineY);
+  
+        // Clear using CSS-pixel space (transform already set)
+        ctx.clearRect(0, 0, w, h);
+  
+        // Sand
+        ctx.fillStyle = SAND;
+        ctx.fillRect(0, 0, w, h);
+  
+        // Subtle sand shading
+        const g = ctx.createLinearGradient(0, shorelineY, 0, h);
+        g.addColorStop(0, "rgba(0,0,0,0.00)");
+        g.addColorStop(1, "rgba(0,0,0,0.08)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, shorelineY, w, h - shorelineY);
+  
+        // Sand buttons text
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "600 18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        for (const b of buttons) {
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = "#000";
+          roundRect(b.x, b.y, b.w, b.h, 14);
+          ctx.fill();
+  
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = SAND_DARK;
+          ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
+          ctx.globalAlpha = 0.65;
+          ctx.fillStyle = "#8f7a45";
+          ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2);
+          ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+  
+        // Water
+        ctx.save();
+        ctx.fillStyle = WATER;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(w, 0);
+  
+        const step = Math.max(6, Math.floor(w / 140));
+        for (let x = w; x >= 0; x -= step) {
+          ctx.lineTo(x, waterlineY(x, t, w, shorelineY));
+        }
+        ctx.closePath();
         ctx.fill();
-
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = SAND_DARK;
-        // tiny shadow to feel etched
-        ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
-        ctx.globalAlpha = 0.65;
-        ctx.fillStyle = "#8f7a45";
-        ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2);
-        ctx.globalAlpha = 1;
+  
+        // Water edge highlight
+        ctx.globalAlpha = 0.18;
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += step) {
+          const y = waterlineY(x, t, w, shorelineY);
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+  
+        // Cursor dot
+        if (mouse.has) {
+          ctx.save();
+          ctx.globalAlpha = 0.35;
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      } catch (err) {
+        console.error("Render error:", err);
+        // If something breaks, at least show sand so it isn't black
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = SAND;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-      ctx.restore();
+  
+      requestAnimationFrame(frame);
+    }
+  
+    requestAnimationFrame(frame);
+  </script>
 
-      // Draw water polygon (top down to waterline)
-      ctx.save();
-      ctx.fillStyle = WATER;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(w, 0);
-
-      // sample waterline
-      const step = Math.max(6, Math.floor(w / 140));
-      for (let x = w; x >= 0; x -= step) {
-        ctx.lineTo(x, waterlineY(x, t, w, h, shorelineY));
-      }
-
-      ctx.closePath();
-      ctx.fill();
-
-      // Slight highlight along the water edge (still minimal)
-      ctx.globalAlpha = 0.18;
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineW
