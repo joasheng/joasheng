@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     html, body {
       min-height: 100%;
@@ -126,6 +127,20 @@
       margin: 0;
     }
 
+    .post-body {
+      font-size: 15px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.75);
+    }
+
+    .post-body p {
+      margin: 0 0 12px;
+    }
+
+    .post-body p:last-child {
+      margin-bottom: 0;
+    }
+
     .empty-state {
       text-align: center;
       padding: 64px 24px;
@@ -172,15 +187,64 @@
     <h1>progress</h1>
     <p class="subtitle"></p>
 
-    <div class="posts">
-      <div class="post">
-        <h2 class="post-title">Hello World</h2>
-        <div class="post-meta">February 3, 2026</div>
-        <p class="post-excerpt">
-          Hello Kevin
-        </p>
-      </div>
-    </div>
+    <div class="posts" id="posts"></div>
   </main>
+
+  <script>
+    const MAX_POSTS = 100;
+    const postsEl = document.getElementById("posts");
+
+    function escapeHtml(s) {
+      const div = document.createElement("div");
+      div.textContent = s ?? "";
+      return div.innerHTML;
+    }
+
+    function parseFrontmatter(text) {
+      const match = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
+      if (match) {
+        const meta = {};
+        match[1].split("\n").forEach((line) => {
+          const i = line.indexOf(":");
+          if (i > -1) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+        });
+        return { meta, body: match[2] };
+      }
+      return { meta: {}, body: text };
+    }
+
+    function renderPost(num, text) {
+      const { meta, body } = parseFrontmatter(text);
+      const html = marked.parse(body || "");
+      const div = document.createElement("div");
+      div.className = "post";
+      div.innerHTML = `
+        <h2 class="post-title">${escapeHtml(meta.title || String(num))}</h2>
+        <div class="post-meta">${escapeHtml(meta.date || "")}</div>
+        <div class="post-body">${html}</div>
+      `;
+      postsEl.appendChild(div);
+    }
+
+    (async () => {
+      try {
+        const results = await Promise.allSettled(
+          Array.from({ length: MAX_POSTS }, (_, i) =>
+            fetch(`entries/${i + 1}.md`).then((r) => (r.ok ? r.text() : null))
+          )
+        );
+        const entries = results
+          .map((r, i) => (r.status === "fulfilled" && r.value ? { num: i + 1, text: r.value } : null))
+          .filter(Boolean)
+          .sort((a, b) => b.num - a.num);
+
+        for (const { num, text } of entries) {
+          renderPost(num, text);
+        }
+      } catch (err) {
+        postsEl.innerHTML = `<div class="empty-state">Could not load posts.</div>`;
+      }
+    })();
+  </script>
 </body>
 </html>
