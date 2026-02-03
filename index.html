@@ -3,219 +3,227 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Minimal Shoreline Interactive</title>
+  <title>Jiasheng Zhou</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     html, body {
       height: 100%;
       margin: 0;
       background: #000;
       overflow: hidden;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      font-family: "Open Sans", system-ui, sans-serif;
     }
     canvas {
-      display: block;
-      width: 100vw;
-      height: 100vh;
-      cursor: none; /* feels nicer with the water interaction */
-    }
-    .hint {
       position: fixed;
-      left: 16px;
-      bottom: 14px;
-      font-size: 12px;
-      color: rgba(255,255,255,0.75);
-      user-select: none;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      z-index: 0;
+    }
+
+    .ui {
+      position: fixed;
+      inset: 0;
       pointer-events: none;
-      letter-spacing: 0.2px;
+      z-index: 1;
+      font-family: "Open Sans", system-ui, sans-serif;
+    }
+
+    .hamburger {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 24px;
+      height: 18px;
+      border: none;
+      background: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      pointer-events: auto;
+      padding: 0;
+      transition: filter 0.2s;
+    }
+    .hamburger span {
+      display: block;
+      width: 100%;
+      height: 2px;
+      background: rgba(255,255,255,0.75);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .hamburger:hover span {
+      background: #fff;
+      box-shadow: 0 0 8px rgba(255,255,255,0.5);
+    }
+
+    .sidebar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: min(280px, 70vw);
+      height: 100%;
+      background: rgba(4,4,4,0.96);
+      border-left: 1px solid rgba(255,255,255,0.12);
+      box-shadow: -18px 0 40px rgba(0,0,0,0.85);
+      transform: translateX(100%);
+      transition: transform 220ms ease-out, opacity 220ms ease-out;
+      opacity: 0;
+      display: flex;
+      flex-direction: column;
+      pointer-events: auto;
+      color: #f5f5f5;
+    }
+    .sidebar.open {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 18px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: rgba(255,255,255,0.9);
+    }
+    .close-btn {
+      border: none;
+      background: none;
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+      transition: color 0.2s, text-shadow 0.2s;
+    }
+    .close-btn:hover {
+      color: #fff;
+      text-shadow: 0 0 12px rgba(255,255,255,0.5);
+    }
+
+    .sidebar-body {
+      padding: 16px 18px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.82);
+    }
+
+    .sidebar-link {
+      color: rgba(255,255,255,0.75);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s, text-shadow 0.2s;
+    }
+
+    .sidebar-link:hover {
+      color: #fff;
+      text-shadow: 0 0 12px rgba(255,255,255,0.5);
+    }
+
+    .name-center {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 0;
+      opacity: 0;
+      animation: name-fade-in 2s linear 2s forwards;
+    }
+
+    .name-center .name {
+      font-size: 48px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.9);
+      letter-spacing: 0.08em;
+    }
+
+    .contact-btn {
+      font-family: inherit;
+      border: none;
+      background: none;
+      color: rgba(255,255,255,0.75);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.2s, text-shadow 0.2s;
+    }
+
+    .contact-btn:hover {
+      color: #fff;
+      text-shadow: 0 0 12px rgba(255,255,255,0.5);
+    }
+
+    @keyframes name-fade-in {
+      to { opacity: 1; }
     }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
-  <div class="hint">Move mouse: water pulls back • Click the sand text buttons</div>
+  <div class="name-center">
+    <span class="name">「 周加晟 」</span>
+    <button type="button" id="contactBtn" class="contact-btn">contact</button>
+  </div>
+  <div class="ui">
+    <button id="menuButton" class="hamburger" aria-label="Open menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    <aside id="sidebar" class="sidebar" aria-label="Sidebar menu">
+      <div class="sidebar-header">
+        <div class="sidebar-title">jiasheng</div>
+        <button id="closeSidebar" class="close-btn" aria-label="Close menu">×</button>
+      </div>
+      <div class="sidebar-body">
+        <a href="/blog.html" class="sidebar-link">progress</a>
+      </div>
+    </aside>
+  </div>
 
   <script>
-    const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D context not available");
-  
-    const SAND = "#F2D27A";
-    const SAND_DARK = "#C7A85D";
-    const WATER = "#1E73D8";
-  
-    const mouse = { x: 0, y: 0, has: false };
-  
-    const buttons = [
-      { label: "Button 1", w: 140, h: 42, x: 0, y: 0 },
-      { label: "Button 2", w: 140, h: 42, x: 0, y: 0 },
-      { label: "Button 3", w: 140, h: 42, x: 0, y: 0 },
-    ];
-  
-    function resize() {
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      const cssW = canvas.clientWidth || innerWidth;
-      const cssH = canvas.clientHeight || innerHeight;
-  
-      canvas.width = Math.floor(cssW * dpr);
-      canvas.height = Math.floor(cssH * dpr);
-  
-      // draw in CSS pixel coordinates
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-  
-    window.addEventListener("resize", resize);
-    resize();
-  
-    window.addEventListener("mousemove", (e) => {
-      mouse.x = e.clientX;
-      mouse.y = e.clientY;
-      mouse.has = true;
-    });
-    window.addEventListener("mouseleave", () => (mouse.has = false));
-  
-    window.addEventListener("click", (e) => {
-      const x = e.clientX, y = e.clientY;
-      for (const b of buttons) {
-        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-          alert(`${b.label} clicked`);
-          break;
-        }
-      }
-    });
-  
-    function layoutButtons(w, shorelineY) {
-      const gap = 26;
-      const totalW = buttons.reduce((s, b) => s + b.w, 0) + gap * (buttons.length - 1);
-      let x = (w - totalW) / 2;
-      const y = shorelineY + 48;
-      for (const b of buttons) {
-        b.x = x;
-        b.y = y;
-        x += b.w + gap;
-      }
-    }
-  
-    function waterlineY(x, t, w, shorelineY) {
-      const waveAmp = Math.max(6, Math.min(14, w * 0.01));
-      const wave =
-        Math.sin((x / w) * Math.PI * 2.2 + t * 0.0012) * waveAmp +
-        Math.sin((x / w) * Math.PI * 5.1 - t * 0.0009) * (waveAmp * 0.35);
-  
-      let dent = 0;
-      if (mouse.has) {
-        const dx = x - mouse.x;
-        const dy = shorelineY - mouse.y;
-        const dist2 = dx * dx + dy * dy;
-  
-        const sigma = Math.max(140, Math.min(260, w * 0.22));
-        const strength = Math.max(70, Math.min(150, w * 0.10));
-        dent = -strength * Math.exp(-dist2 / (2 * sigma * sigma));
-      }
-      return shorelineY + wave + dent;
-    }
-  
-    function roundRect(x, y, w, h, r) {
-      const rr = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + rr, y);
-      ctx.arcTo(x + w, y, x + w, y + h, rr);
-      ctx.arcTo(x + w, y + h, x, y + h, rr);
-      ctx.arcTo(x, y + h, x, y, rr);
-      ctx.arcTo(x, y, x + w, y, rr);
-      ctx.closePath();
-    }
-  
-    function frame(t) {
-      try {
-        const w = innerWidth;
-        const h = innerHeight;
-        const shorelineY = h * 0.52;
-  
-        layoutButtons(w, shorelineY);
-  
-        // Clear using CSS-pixel space (transform already set)
-        ctx.clearRect(0, 0, w, h);
-  
-        // Sand
-        ctx.fillStyle = SAND;
-        ctx.fillRect(0, 0, w, h);
-  
-        // Subtle sand shading
-        const g = ctx.createLinearGradient(0, shorelineY, 0, h);
-        g.addColorStop(0, "rgba(0,0,0,0.00)");
-        g.addColorStop(1, "rgba(0,0,0,0.08)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, shorelineY, w, h - shorelineY);
-  
-        // Sand buttons text
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = "600 18px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        for (const b of buttons) {
-          ctx.globalAlpha = 0.22;
-          ctx.fillStyle = "#000";
-          roundRect(b.x, b.y, b.w, b.h, 14);
-          ctx.fill();
-  
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = SAND_DARK;
-          ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + 1);
-          ctx.globalAlpha = 0.65;
-          ctx.fillStyle = "#8f7a45";
-          ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2);
-          ctx.globalAlpha = 1;
-        }
-        ctx.restore();
-  
-        // Water
-        ctx.save();
-        ctx.fillStyle = WATER;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(w, 0);
-  
-        const step = Math.max(6, Math.floor(w / 140));
-        for (let x = w; x >= 0; x -= step) {
-          ctx.lineTo(x, waterlineY(x, t, w, shorelineY));
-        }
-        ctx.closePath();
-        ctx.fill();
-  
-        // Water edge highlight
-        ctx.globalAlpha = 0.18;
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (let x = 0; x <= w; x += step) {
-          const y = waterlineY(x, t, w, shorelineY);
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        ctx.restore();
-  
-        // Cursor dot
-        if (mouse.has) {
-          ctx.save();
-          ctx.globalAlpha = 0.35;
-          ctx.fillStyle = "#fff";
-          ctx.beginPath();
-          ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      } catch (err) {
-        console.error("Render error:", err);
-        // If something breaks, at least show sand so it isn't black
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.fillStyle = SAND;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-  
-      requestAnimationFrame(frame);
-    }
-  
-    requestAnimationFrame(frame);
-  </script>
+    // Sidebar UI behaviour
+    const menuButton = document.getElementById("menuButton");
+    const sidebar = document.getElementById("sidebar");
+    const closeSidebar = document.getElementById("closeSidebar");
 
+    function openSidebar() {
+      sidebar.classList.add("open");
+    }
+
+    function closeSidebarFn() {
+      sidebar.classList.remove("open");
+    }
+
+    menuButton?.addEventListener("click", () => {
+      if (sidebar.classList.contains("open")) closeSidebarFn();
+      else openSidebar();
+    });
+
+    closeSidebar?.addEventListener("click", closeSidebarFn);
+
+    // Contact button toggles to email on click
+    const contactBtn = document.getElementById("contactBtn");
+    const EMAIL = "hello@jiashe.ng";
+    contactBtn?.addEventListener("click", () => {
+      contactBtn.textContent = contactBtn.textContent === "contact" ? EMAIL : "contact";
+    });
+  </script>
+  <script src="snow.js"></script>
+</body>
+</html>
