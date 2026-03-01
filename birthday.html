@@ -1,0 +1,186 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Birthday</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    html, body {
+      min-height: 100vh;
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: "Open Sans", system-ui, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 24px;
+      box-sizing: border-box;
+    }
+    .text {
+      font-size: 48px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+      animation: text-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes text-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    #c {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <p class="text">生日快乐 Ba 🥳</p>
+  <script>
+    (function() {
+      const canvas = document.getElementById("c");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      let cw = 0, ch = 0;
+      function resize() {
+        cw = canvas.width = window.innerWidth;
+        ch = canvas.height = window.innerHeight;
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      const snorlaxImg = new Image();
+      snorlaxImg.src = "143 Snorlax.png";
+
+      const SNORLAX_SIZE = 80;
+      const RISE_SPEED = 5;
+      const EXPLODE_Y_RATIO = 0.35;
+      const PARTICLE_COUNT = 120;
+      const PARTICLE_SPEED = 4;
+      const GRAVITY = 0.08;
+      const SPAWN_MIN_MS = 400;
+      const SPAWN_MAX_MS = 1200;
+
+      let rockets = [];
+      let explosions = [];
+
+      function randomX() {
+        const margin = SNORLAX_SIZE;
+        return margin + Math.random() * (cw - 2 * margin);
+      }
+
+      function randomColor() {
+        return {
+          r: Math.floor(Math.random() * 256),
+          g: Math.floor(Math.random() * 256),
+          b: Math.floor(Math.random() * 256)
+        };
+      }
+
+      function createParticles(x, y) {
+        const list = [];
+        const color = randomColor();
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          const angle = (Math.PI * 2 * i) / PARTICLE_COUNT + Math.random() * 0.5;
+          const speed = PARTICLE_SPEED * (0.7 + Math.random() * 0.6);
+          list.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 2,
+            life: 0.6 + Math.random() * 0.4,
+            decay: 0.004 + Math.random() * 0.008
+          });
+        }
+        return { parts: list, ...color };
+      }
+
+      function spawnRocket() {
+        const explodeRatio = EXPLODE_Y_RATIO * (0.8 + Math.random() * 1);
+        rockets.push({ x: randomX(), y: ch, rotation: Math.random() * Math.PI * 2, explodeRatio });
+      }
+
+      function frame() {
+        ctx.clearRect(0, 0, cw, ch);
+
+        for (let i = rockets.length - 1; i >= 0; i--) {
+          const r = rockets[i];
+          r.y -= RISE_SPEED;
+          if (snorlaxImg.complete && snorlaxImg.naturalWidth) {
+            ctx.save();
+            ctx.translate(r.x, r.y);
+            ctx.rotate(r.rotation);
+            ctx.drawImage(snorlaxImg, -SNORLAX_SIZE / 2, -SNORLAX_SIZE / 2, SNORLAX_SIZE, SNORLAX_SIZE);
+            ctx.restore();
+          } else {
+            ctx.save();
+            ctx.translate(r.x, r.y);
+            ctx.rotate(r.rotation);
+            ctx.fillStyle = "#3d5a4c";
+            ctx.beginPath();
+            ctx.arc(0, 0, SNORLAX_SIZE / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+          const explodeY = ch * r.explodeRatio;
+          if (r.y < explodeY) {
+            rockets.splice(i, 1);
+            explosions.push(createParticles(r.x, r.y));
+          }
+        }
+
+        for (let e = explosions.length - 1; e >= 0; e--) {
+          const explosion = explosions[e];
+          const parts = explosion.parts;
+          const { r, g, b } = explosion;
+          let anyAlive = false;
+          for (const p of parts) {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += GRAVITY;
+            p.life -= p.decay;
+            if (p.life > 0) {
+              anyAlive = true;
+              const size = 4;
+              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.life})`;
+              ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
+            }
+          }
+          if (!anyAlive) explosions.splice(e, 1);
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+      function scheduleNextSpawn() {
+        const delay = SPAWN_MIN_MS + Math.random() * (SPAWN_MAX_MS - SPAWN_MIN_MS);
+        setTimeout(() => {
+          spawnRocket();
+          scheduleNextSpawn();
+        }, delay);
+      }
+      function start() {
+        requestAnimationFrame(frame);
+        spawnRocket();
+        scheduleNextSpawn();
+      }
+      snorlaxImg.onload = start;
+      snorlaxImg.onerror = start;
+    })();
+  </script>
+</body>
+</html>
